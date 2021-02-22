@@ -1,15 +1,23 @@
 #!/bin/bash
-# Bash required
-# Should be run as root and saved to /usr/local/bin/x-resize
-# Requies udev rule: /etc/udev/rules.d/50-x-resize.rules
-# udev rule content: 
+# Steps:
+# 1) Make sure bash is available
+# 2) Create udev rule
+# - path to new udev rule: /etc/udev/rules.d/50-x-resize.rules
+# - udev rule content: 
 # ACTION=="change",KERNEL=="card0", SUBSYSTEM=="drm", RUN+="/usr/local/bin/x-resize" 
-# Make sure auto-resize is enabled in virt-viewer/spicy
-# Credit for Finding Sessions as Root: https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them
-# Credit for Resizing via udev: https://superuser.com/questions/1183834/no-auto-resize-with-spice-and-virt-manager
+# 3) Create /var/log/autores directory
+# 4) Create script /usr/local/bin/x-resize (this file) and make executable
+# 5) Reload udev rules with `sudo udevadm control --reload-rules`
+# 6) Make sure auto-resize is enabled in virt-viewer/spicy
+# Debugging:
+# - Watch udev events on resize with `udevadm monitor`
+# - Watch dmesg (may not be super useful) with `dmesg -w`
+# - Watch autores logs with `tail -f /var/log/autores/autores.log`
+# Credits:
+# - Credit for Finding Sessions as Root: https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them
+# - Credit for Resizing via udev: https://superuser.com/questions/1183834/no-auto-resize-with-spice-and-virt-manager
 
 ## Ensure Log Directory Exists
-
 LOG_DIR=/var/log/autores;
 if [ ! -d $LOG_DIR ]; then
     mkdir $LOG_DIR;
@@ -17,7 +25,6 @@ fi
 LOG_FILE=${LOG_DIR}/autores.log
 
 ## Function to find User Sessions & Resize their display
-
 function x_resize() {
     declare -A disps usrs
     usrs=()
