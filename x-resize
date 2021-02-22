@@ -9,6 +9,8 @@
 # 4) Create script /usr/local/bin/x-resize (this file) and make executable
 # 5) Reload udev rules with `sudo udevadm control --reload-rules`
 # 6) Make sure auto-resize is enabled in virt-viewer/spicy
+# 7) Make sure qemu-guest-agent spice-vdagent xserver-xspice xserver-xorg-video-qxl  are installed
+# 8) Make sure spice-vdagentd is loaded and running fine
 # Debugging:
 # - Watch udev events on resize with `udevadm monitor`
 # - Watch dmesg (may not be super useful) with `dmesg -w`
