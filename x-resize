@@ -38,7 +38,7 @@ function x_resize() {
     done
 
     for u in "${!usrs[@]}"; do
-        for i in $(sudo ps e -u "$u" | sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p');do
+        for i in $(ps e -u "$u" | sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p');do
             disps[$i]=$u
         done
     done
@@ -46,11 +46,11 @@ function x_resize() {
     for d in "${!disps[@]}";do
 	    session_user="${disps[$d]}"
 	    session_display="$d"
-	    session_output=$(sudo -u "$session_user" PATH=/usr/bin DISPLAY="$session_display" xrandr | awk '/ connected/{print $1; exit; }')
+	    session_output=$(su - "$session_user" -c "PATH=/usr/bin DISPLAY="$session_display" xrandr | awk '/ connected/{print \$1; exit; }'")
 	    echo "Session User: $session_user" | tee -a $LOG_FILE;
 	    echo "Session Display: $session_display" | tee -a $LOG_FILE;
 	    echo "Session Output: $session_output" | tee -a $LOG_FILE;
-	    sudo -u "$session_user" PATH=/usr/bin DISPLAY="$session_display" xrandr --output "$session_output" --auto | tee -a $LOG_FILE;
+	    su - "$session_user" -c "PATH=/usr/bin DISPLAY="$session_display" xrandr --output "$session_output" --auto" | tee -a $LOG_FILE;
     done
 }
 
