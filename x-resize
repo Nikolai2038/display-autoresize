@@ -19,6 +19,12 @@
 # - Credit for Finding Sessions as Root: https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them
 # - Credit for Resizing via udev: https://superuser.com/questions/1183834/no-auto-resize-with-spice-and-virt-manager
 
+## Only run as root user
+if [ "${EUID}" -ne 0 ]; then
+    >&2 echo "Please run as root."
+    exit 1
+fi
+
 ## Ensure Log Directory Exists
 LOG_DIR=/var/log/autores;
 if [ ! -d $LOG_DIR ]; then
