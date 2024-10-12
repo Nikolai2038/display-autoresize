@@ -7,12 +7,12 @@ Script to autoresize display in SPICE session for X11 displays.
 1. Make sure `bash` is available;
 2. Create udev rule:
 
-   - path to new udev rule: `/etc/udev/rules.d/50-display-autoresize.rules`
-   - udev rule content:
+    - path to new udev rule: `/etc/udev/rules.d/50-display-autoresize.rules`
+    - udev rule content:
 
-    ```
-    ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/local/bin/display-autoresize"
-    ```
+        ```
+        ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/local/bin/display-autoresize"
+        ```
      
 3. Create script `/usr/local/bin/display-autoresize` (this file) and make executable;
 4. Reload udev rules with `sudo udevadm control --reload-rules`;
