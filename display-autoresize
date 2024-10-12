@@ -1,19 +1,14 @@
 #!/bin/bash
 
-## Only run as root user
+# Only run as root user
 if [ "${EUID}" -ne 0 ]; then
     >&2 echo "Please run as root."
     exit 1
 fi
 
-## Ensure Log Directory Exists
-LOG_DIR=/var/log/autores;
-if [ ! -d $LOG_DIR ]; then
-    mkdir $LOG_DIR;
-fi
-LOG_FILE=${LOG_DIR}/autores.log
+LOG_FILE=/var/log/display-autoresize.log
 
-## Function to find User Sessions & Resize their display
+# Function to find User Sessions & Resize their display
 function x_resize() {
     declare -A disps usrs
     usrs=()

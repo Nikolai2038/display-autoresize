@@ -14,18 +14,17 @@ Script to autoresize display in SPICE session for X11 displays.
     ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/local/bin/display-autoresize"
     ```
      
-3. Create `/var/log/autores` directory;
-4. Create script `/usr/local/bin/display-autoresize` (this file) and make executable;
-5. Reload udev rules with `sudo udevadm control --reload-rules`;
-6. Make sure `auto-resize` is enabled in `virt-viewer`/`spicy`;
-7. Make sure `qemu-guest-agent spice-vdagent xserver-xspice xserver-xorg-video-qxl` are installed;
-8. Make sure `spice-vdagentd` is loaded and running fine.
+3. Create script `/usr/local/bin/display-autoresize` (this file) and make executable;
+4. Reload udev rules with `sudo udevadm control --reload-rules`;
+5. Make sure `auto-resize` is enabled in `virt-viewer`/`spicy`;
+6. Make sure `qemu-guest-agent spice-vdagent xserver-xspice xserver-xorg-video-qxl` are installed;
+7. Make sure `spice-vdagentd` is loaded and running fine.
 
 ## Debugging
 
-- Watch udev events on resize with `udevadm monitor`
-- Watch `dmesg` (may not be super useful) with `dmesg -w`
-- Watch `autores` logs with `tail -f /var/log/autores/autores.log`
+- Watch udev events on resize with `udevadm monitor`;
+- Watch `dmesg` (may not be super useful) with `dmesg -w`;
+- Watch logs with `tail -f /var/log/display-autoresize.log`.
 
 ## Credits:
 
