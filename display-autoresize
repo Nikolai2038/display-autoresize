@@ -7,36 +7,48 @@ log_file_path="/var/log/display-autoresize.log"
 
 # Only run as root user
 if [ "${EUID}" -ne 0 ]; then
-    echo "Please run as root." >&2
-    exit 1
+  echo "Please run as root." >&2
+  exit 1
 fi
 
 # Function to find User Sessions & Resize their display
 function display_autoresize() {
-    declare -a x11_xauthority_infos
-    local user xauthority_file display output x11_xauthority_info
+  declare -a x11_xauthority_infos
+  local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string
 
-    local x11_xauthority_infos_as_string
-    x11_xauthority_infos_as_string="$(find /tmp -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
+  # ========================================
+  # X11
+  # ========================================
+  # Get all users who use Xauthority right now
+  x11_xauthority_infos_as_string="$(find /tmp -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
+  # Convert to array
+  mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
 
-    # Convert to array
-    mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
+  # For each of them
+  for x11_xauthority_info in "${x11_xauthority_infos[@]}"; do
+    user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || return "$?"
+    xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || return "$?"
+    display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || return "$?"
+    output="$(su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1; exit; }'")" || continue
 
-    for x11_xauthority_info in "${x11_xauthority_infos[@]}"; do
-      user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || return "$?"
-      xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || return "$?"
-      display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || return "$?"
-	    output="$(su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1; exit; }'")" || continue
-
-      # shellcheck disable=SC2320
-      echo "Resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
+    # Log some info
+    # shellcheck disable=SC2320
+    echo "Resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
 - Session User: ${user}
 - Xauthority file: ${xauthority_file}
 - Session Display: ${display}
 - Session Output: ${output}" >&2 || return "$?"
 
-	    su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || continue
-    done
+    # Change display resolution
+    su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || continue
+  done
+  # ========================================
+
+  # ========================================
+  # Wayland: Sway
+  # ========================================
+  # ...
+  # ========================================
 }
 
 display_autoresize "$@" 2>&1 | tee --append "${log_file_path}" || exit "$?"
