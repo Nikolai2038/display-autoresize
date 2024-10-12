@@ -13,37 +13,29 @@ fi
 
 # Function to find User Sessions & Resize their display
 function display_autoresize() {
-    declare -A users displays
-    local user_online user display session_user xauthority_file session_display session_output
+    declare -a x11_xauthority_infos
+    local user xauthority_file display output x11_xauthority_info
 
-    for user_online in $(users); do
-        # skip root
-        if [ "${user_online}" = root ]; then
-            continue
-        fi
-        users["${user_online}"]=1
-    done
+    local x11_xauthority_infos_as_string
+    x11_xauthority_infos_as_string="$(find /tmp -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
 
-    for user_online in "${!users[@]}"; do
-        for user in $(ps e -u "${user_online}" | sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p'); do
-            displays["${user}"]="${user_online}"
-        done
-    done
+    # Convert to array
+    mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
 
-    for display in "${!displays[@]}";do
-	    session_user="${displays["${display}"]}"
-	    xauthority_file="$(find /tmp -maxdepth 1 -type f -name 'xauth_*' -perm 600 -user "${session_user}")"
-	    session_display="${display}"
-	    session_output=$(su - "${session_user}" -c "PATH=/usr/bin DISPLAY=\"${session_display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1; exit; }'") || continue
+    for x11_xauthority_info in "${x11_xauthority_infos[@]}"; do
+      user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || return "$?"
+      xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || return "$?"
+      display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || return "$?"
+	    output="$(su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1; exit; }'")" || continue
 
       # shellcheck disable=SC2320
       echo "Resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
-- Session User: ${session_user}
+- Session User: ${user}
 - Xauthority file: ${xauthority_file}
-- Session Display: ${session_display}
-- Session Output: ${session_output}" >&2 || return "$?"
+- Session Display: ${display}
+- Session Output: ${output}" >&2 || return "$?"
 
-	    su - "${session_user}" -c "PATH=/usr/bin DISPLAY=\"${session_display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${session_output}\" --auto" || continue
+	    su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || continue
     done
 }
 
