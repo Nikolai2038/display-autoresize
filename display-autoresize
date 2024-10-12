@@ -1,40 +1,48 @@
 #!/bin/bash
 
+# Fail command if any of pipeline blocks fail
+set -o pipefail || exit "$?"
+
+log_file_path="/var/log/display-autoresize.log"
+
 # Only run as root user
 if [ "${EUID}" -ne 0 ]; then
-    >&2 echo "Please run as root."
+    echo "Please run as root." >&2
     exit 1
 fi
 
-LOG_FILE=/var/log/display-autoresize.log
-
 # Function to find User Sessions & Resize their display
-function x_resize() {
-    declare -A disps usrs
-    usrs=()
-    disps=()
+function display_autoresize() {
+    declare -A users displays
+    local user_online user display session_user session_display session_output
 
-    for i in $(users);do
-        [[ $i = root ]] && continue # skip root
-        usrs[$i]=1
+    for user_online in $(users); do
+        # skip root
+        if [ "${user_online}" = root ]; then
+            continue
+        fi
+        users["${user_online}"]=1
     done
 
-    for u in "${!usrs[@]}"; do
-        for i in $(ps e -u "$u" | sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p');do
-            disps[$i]=$u
+    for user_online in "${!users[@]}"; do
+        for user in $(ps e -u "${user_online}" | sed -rn 's/.* DISPLAY=(:[0-9]*).*/\1/p');do
+            displays["${user}"]="${user_online}"
         done
     done
 
-    for d in "${!disps[@]}";do
-	    session_user="${disps[$d]}"
-	    session_display="$d"
-	    session_output=$(su - "$session_user" -c "PATH=/usr/bin DISPLAY="$session_display" xrandr | awk '/ connected/{print \$1; exit; }'")
-	    echo "Session User: $session_user" | tee -a $LOG_FILE;
-	    echo "Session Display: $session_display" | tee -a $LOG_FILE;
-	    echo "Session Output: $session_output" | tee -a $LOG_FILE;
-	    su - "$session_user" -c "PATH=/usr/bin DISPLAY="$session_display" xrandr --output "$session_output" --auto" | tee -a $LOG_FILE;
+    for display in "${!displays[@]}";do
+	    session_user="${displays["${display}"]}"
+	    session_display="${display}"
+	    session_output=$(su - "${session_user}" -c "PATH=/usr/bin DISPLAY=\"${session_display}\" xrandr | awk '/ connected/{print \$1; exit; }'") || return "$?"
+
+      # shellcheck disable=SC2320
+      echo "Resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
+- Session User: ${session_user}
+- Session Display: ${session_display}
+- Session Output: ${session_output}" >&2 || return "$?"
+
+	    su - "${session_user}" -c "PATH=/usr/bin DISPLAY=\"${session_display}\" xrandr --output \"${session_output}\" --auto" || return "$?"
     done
 }
 
-echo "Resize Event: $(date)" | tee -a $LOG_FILE
-x_resize
+display_autoresize "$@" 2>&1 | tee -a "${log_file_path}" || exit "$?"
