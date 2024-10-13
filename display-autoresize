@@ -27,7 +27,7 @@ function resize_x11() {
 - Output: ${output}" >&2 || return "$?"
 
   # Change display resolution
-  su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || return "$?"
+  DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr --output "${output}" --auto || return "$?"
 
   return 0
 }

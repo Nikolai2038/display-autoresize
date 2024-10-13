@@ -1,37 +1,71 @@
 # display-autoresize
 
+**EN**
+
+## 1. Description
+
 Script to autoresize display in SPICE session. Tested on:
 
 - X11: i3;
 - Wayland: sway.
 
-## Steps
+## 2. Requirements
 
-1. Make sure `bash`, `screen`, `jq` are installed;
-2. Create udev rule:
+### 2.1. Guest
 
-    - path to new udev rule: `/etc/udev/rules.d/50-display-autoresize.rules`
-    - udev rule content:
+1. Install `bash`, `screen`, `jq`:
 
+    - Arch-based:
+
+        ```bash
+        sudo pacman --sync --refresh --needed bash screen jq
         ```
-        ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/local/bin/display-autoresize"
-        ```
-     
-3. Create script `/usr/local/bin/display-autoresize` (this file) and make executable;
-4. Reload udev rules with `sudo udevadm control --reload-rules`;
-5. Make sure `auto-resize` is enabled in `virt-viewer`/`spicy`;
-6. Make sure `qemu-guest-agent spice-vdagent xserver-xspice xserver-xorg-video-qxl` are installed;
-7. Make sure `spice-vdagentd` is loaded and running fine.
 
-## Debugging
+2. Install `drm_info`:
+
+    - Arch-based:
+
+        ```bash
+        yay --sync --refresh --needed --sudoloop drm_info
+        ```
+
+3. Download script `display-autoresize` from this repository and make it executable:
+
+    ```bash
+    sudo wget -O /usr/bin/display-autoresize https://raw.githubusercontent.com/Nikolai2038/display-autoresize/refs/heads/main/display-autoresize && \
+    sudo chmod +x /usr/bin/display-autoresize
+    ```
+
+   - You can put script not in `/usr/bin/display-autoresize`, but make sure to change path to it in udev rule too (see below).
+
+4. Create udev rule:
+
+    ```bash
+    echo 'ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/bin/display-autoresize"' | sudo tee /etc/udev/rules.d/50-display-autoresize.rules && \
+    sudo udevadm control --reload-rules
+    ```
+
+5. Make sure `qemu-guest-agent spice-vdagent xserver-xspice xserver-xorg-video-qxl` are installed;
+6. Make sure `spice-vdagentd` is loaded and running fine.
+
+### 2.2. Host
+
+Just make sure that auto-resize is enabled when you are connecting via `virt-viewer`/`spicy`.
+
+
+## 3. Debugging
 
 - Watch udev events on resize with `udevadm monitor`;
-- Watch `dmesg` (may not be super useful) with `dmesg -w`;
+- Watch `dmesg -w` (may not be super useful);
 - Watch logs with `tail -f /var/log/display-autoresize.log`.
 
-## Credits:
+## 4. Credits:
 
-- "Forked" from [gist](https://gist.github.com/IngoMeyer441/84cf1e40fa756a9c3e6c8d9e38ee9b6f);
+- "Forked" from [gist](https://gist.github.com/IngoMeyer441/84cf1e40fa756a9c3e6c8d9e38ee9b6f). Add `XAUTHORITY` and Sway (Wayland) support;
 - Credit for [finding sessions as root](https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them);
 - Credit for [resizing via udev](https://superuser.com/questions/1183834/no-auto-resize-with-spice-and-virt-manager);
 - Credit for [`drm_info` solution](https://todo.sr.ht/~emersion/wlr-randr/15) to get current window resolution in Wayland.
+
+## 5. Contribution
+
+Feel free to contribute via [pull requests](https://github.com/Nikolai2038/display-autoresize/pulls) or [issues](https://github.com/Nikolai2038/display-autoresize/issues)!
