@@ -11,10 +11,51 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
+# Resizes X11 display
+function resize_x11() {
+  local user="${1}" && { shift || true; } || return "$?"
+  local xauthority_file="${1}" && { shift || true; } || return "$?"
+  local display="${1}" && { shift || true; } || return "$?"
+  local output="${1}" && { shift || true; } || return "$?"
+
+  # Log some info
+  # shellcheck disable=SC2320
+  echo "X11 resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
+- User: ${user}
+- Xauthority file: ${xauthority_file}
+- Display: ${display}
+- Output: ${output}" >&2 || return "$?"
+
+  # Change display resolution
+  su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || return "$?"
+
+  return 0
+}
+
+# Resizes Wayland display for Sway
+function resize_wayland_sway() {
+  local user="${1}" && { shift || true; } || return "$?"
+  local sway_socket="${1}" && { shift || true; } || return "$?"
+  local output="${1}" && { shift || true; } || return "$?"
+
+  local target_resolution
+  target_resolution="$(drm_info | grep preferred | sed -En 's/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p' | head -n 1)Hz"
+  echo "Wayland Sway resize event: $(date +'"'%Y-%m-%d_%H-%M-%S'"'):
+  - User: ${user}
+  - Sway socket: ${sway_socket}
+  - Output: ${output}
+  - Target resolution: ${target_resolution}" | tee --append "${log_file_path}" || return "$?"
+
+  # Change display resolution
+  swaymsg --socket "${sway_socket}" "output ${output} mode --custom ${target_resolution}" || return "$?"
+
+  return 0
+}
+
 # Function to find User Sessions & Resize their display
 function display_autoresize() {
   declare -a x11_xauthority_infos sway_socket_infos
-  local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string sway_socket_infos_as_string sway_socket_info sway_socket target_resolution
+  local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string sway_socket_infos_as_string sway_socket_info sway_socket
 
   # shellcheck disable=SC2320
   echo "Script called: $(date +'%Y-%m-%d_%H-%M-%S'):" >&2 || return "$?"
@@ -35,16 +76,7 @@ function display_autoresize() {
       display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || return "$?"
       output="$(su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1}'")" || continue
 
-      # Log some info
-      # shellcheck disable=SC2320
-      echo "X11 resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
-- User: ${user}
-- Xauthority file: ${xauthority_file}
-- Display: ${display}
-- Output: ${output}" >&2 || return "$?"
-
-      # Change display resolution
-      su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr --output \"${output}\" --auto" || continue
+      resize_x11 "${user}" "${xauthority_file}" "${display}" "${output}" || return "$?"
     done
   fi
   # ========================================
@@ -65,21 +97,19 @@ function display_autoresize() {
       output="$(swaymsg --socket "${sway_socket}" --type 'get_outputs' --raw | jq -r '.[0].name')" || return "$?"
 
       # New display resolution will be available only after event call ended, so we execute script in background via "screen"
-      screen -S my -dm sh -c '
-        target_resolution="$(drm_info | grep preferred | sed -En '"'s/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p'"' | head -n 1)Hz"
-        echo "Wayland Sway resize event: $(date +'"'%Y-%m-%d_%H-%M-%S'"'):
-  - User: '"${user}"'
-  - Sway socket: '"${sway_socket}"'
-  - Output: '"${output}"'
-  - Target resolution: ${target_resolution}" | tee --append "'"${log_file_path}"'" || return "$?"
-
-        # Change display resolution
-        swaymsg --socket "'"${sway_socket}"'" "output '"${output}"' mode --custom ${target_resolution}" || return "$?"
-      '
-
+      screen -S "display_autoresize_script" -dm sh -c "\"$0\" \"resize_wayland_sway\" \"${user}\" \"${sway_socket}\" \"${output}\"" || return "$?"
     done
   fi
   # ========================================
+
+  return 0
 }
 
-display_autoresize "$@" 2>&1 | tee --append "${log_file_path}" || exit "$?"
+function_name_to_call="${1}" && { shift || true; }
+# For call via "screen" - to not store code in string passed to "screen", which is hard to be worked with
+if [ "${function_name_to_call}" = "resize_wayland_sway" ]; then
+  resize_wayland_sway "$@" 2>&1 | tee --append "${log_file_path}" || exit "$?"
+else
+  display_autoresize "$@" 2>&1 | tee --append "${log_file_path}" || exit "$?"
+fi
+
