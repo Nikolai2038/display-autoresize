@@ -20,10 +20,11 @@ Preview:
     - Arch-based:
 
         ```bash
-        sudo pacman --sync --refresh --needed bash screen jq spice-vdagent xf86-video-qxl
+        sudo pacman --sync --refresh --needed bash xorg-xrandr screen jq spice-vdagent xf86-video-qxl
         ```
-        
+
         - `bash` - for script execution;
+        - `xorg-xrandr` - for `xrandr` command to get and modify display outputs;
         - `screen` - to run script for sway in background;
         - `jq` - to parse `swaymsg` output;
         - `spice-vdagent` and `xf86-video-qxl` - SPICE guest tools.
