@@ -51,7 +51,7 @@ function display_autoresize() {
   # X11
   # ========================================
   # Get all users who use Xauthority right now
-  x11_xauthority_infos_as_string="$(find /run/user/* -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
+  x11_xauthority_infos_as_string="$(find /run/user/* -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || true
   if [ -n "${x11_xauthority_infos_as_string}" ]; then
     # Convert to array
     mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
@@ -82,7 +82,7 @@ function display_autoresize() {
   # Wayland: Sway
   # ========================================
   # Get all users who use Sway right now
-  sway_socket_infos_as_string="$(find /run/user/* -maxdepth 1 -type s -name 'sway-ipc.*.*.sock' -perm 755 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
+  sway_socket_infos_as_string="$(find /run/user/* -maxdepth 1 -type s -name 'sway-ipc.*.*.sock' -perm 755 -exec ls -l {} \; | awk '{print $3 " " $9}')" || true
   if [ -n "${sway_socket_infos_as_string}" ]; then
     # Convert to array
     mapfile -t sway_socket_infos <<< "${sway_socket_infos_as_string}" || return "$?"
