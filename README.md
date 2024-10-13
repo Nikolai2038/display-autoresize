@@ -1,10 +1,13 @@
 # display-autoresize
 
-Script to autoresize display in SPICE session for X11 displays.
+Script to autoresize display in SPICE session. Tested on:
+
+- X11: i3;
+- Wayland: sway.
 
 ## Steps
 
-1. Make sure `bash` is available;
+1. Make sure `bash`, `screen`, `jq` are installed;
 2. Create udev rule:
 
     - path to new udev rule: `/etc/udev/rules.d/50-display-autoresize.rules`
@@ -31,3 +34,4 @@ Script to autoresize display in SPICE session for X11 displays.
 - "Forked" from [gist](https://gist.github.com/IngoMeyer441/84cf1e40fa756a9c3e6c8d9e38ee9b6f);
 - Credit for [Finding Sessions as Root](https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them);
 - Credit for [Resizing via udev](https://superuser.com/questions/1183834/no-auto-resize-with-spice-and-virt-manager).
+- Credit for [`drm_info` solution](https://todo.sr.ht/~emersion/wlr-randr/15) to get current window resolution.
