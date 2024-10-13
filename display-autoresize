@@ -27,9 +27,10 @@ function resize_x11() {
 function resize_wayland_sway() {
   local sway_socket="${1}" && { shift || true; } || return "$?"
   local output="${1}" && { shift || true; } || return "$?"
+  local output_number="${1}" && { shift || true; } || return "$?"
 
   local target_resolution
-  target_resolution="$(drm_info | grep preferred | sed -En 's/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p' | head -n 1)Hz" || return "$?"
+  target_resolution="$(drm_info | grep preferred | sed -En 's/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p' | head -n "${output_number}" | tail -n 1)Hz" || return "$?"
   echo "- Target resolution: ${target_resolution}" >&2
 
   # Change display resolution
@@ -40,8 +41,8 @@ function resize_wayland_sway() {
 
 # Function to find User Sessions & Resize their display
 function display_autoresize() {
-  declare -a x11_xauthority_infos sway_socket_infos
-  local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string sway_socket_infos_as_string sway_socket_info sway_socket
+  declare -a x11_xauthority_infos sway_socket_infos outputs
+  local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string sway_socket_infos_as_string sway_socket_info sway_socket outputs_as_string
 
   echo "========================================" >&2
   # shellcheck disable=SC2320
@@ -62,18 +63,44 @@ function display_autoresize() {
       echo "X11 resize event: $(date +'%Y-%m-%d_%H-%M-%S')." >&2 || continue
 
       user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || continue
+      if [ -z "${user}" ]; then
+        echo "User is empty!" >&2
+        continue
+      fi
       echo "- User: ${user}" >&2
 
       xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || continue
+      if [ ! -f "${xauthority_file}" ]; then
+        echo "Xauthority file does not exist!" >&2
+        continue
+      fi
       echo "- Xauthority file: ${xauthority_file}" >&2
 
       display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || continue
+      if [ -z "${display}" ]; then
+        echo "Display is empty!" >&2
+        continue
+      fi
       echo "- Display: ${display}" >&2
 
-      output="$(DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr | awk '/ connected/{print $1}')" || continue
-      echo "- Output: ${output}" >&2
+      outputs_as_string="$(DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr | awk '/ connected/{print $1}')" || continue
+      if [ -z "${outputs_as_string}" ]; then
+        echo "Outputs is empty!" >&2
+        continue
+      fi
 
-      resize_x11 "${xauthority_file}" "${display}" "${output}" || continue
+      # Convert to array
+      mapfile -t outputs <<< "${outputs_as_string}" || return "$?"
+
+      for output in "${outputs[@]}"; do
+        if [ -z "${output}" ]; then
+          echo "Output is empty!" >&2
+          continue
+        fi
+        echo "- Output: ${output}" >&2
+
+        resize_x11 "${xauthority_file}" "${display}" "${output}" || continue
+      done
     done
   fi
   # ========================================
@@ -93,16 +120,41 @@ function display_autoresize() {
       echo "Wayland Sway resize event: $(date +'%Y-%m-%d_%H-%M-%S')." >&2 || continue
 
       user="$(echo "${sway_socket_info}" | cut -d ' ' -f 1)" || continue
+      if [ -z "${user}" ]; then
+        echo "User is empty!" >&2
+        continue
+      fi
       echo "- User: ${user}" >&2
 
       sway_socket="$(echo "${sway_socket_info}" | cut -d ' ' -f 2)" || continue
+      if [ ! -S "${sway_socket}" ]; then
+        echo "Sway socket does not exist!" >&2
+        continue
+      fi
       echo "- Sway socket: ${sway_socket}" >&2
 
-      output="$(swaymsg --socket "${sway_socket}" --type 'get_outputs' --raw | jq -r '.[0].name')" || continue
-      echo "- Output: ${output}" >&2
+      outputs_as_string="$(swaymsg --socket "${sway_socket}" --type 'get_outputs' --raw | jq -r '.[].name')" || continue
+      if [ -z "${outputs_as_string}" ]; then
+        echo "Outputs is empty!" >&2
+        continue
+      fi
 
-      # New display resolution will be available only after event call ended, so we execute script in background via "screen"
-      screen -S "display_autoresize_script" -dm sh -c "\"$0\" \"resize_wayland_sway\" \"${sway_socket}\" \"${output}\"" || continue
+      # Convert to array
+      mapfile -t outputs <<< "${outputs_as_string}" || return "$?"
+
+      output_number=1
+      for output in "${outputs[@]}"; do
+        if [ -z "${output}" ]; then
+          echo "Output is empty!" >&2
+          continue
+        fi
+        echo "- Output: ${output}" >&2
+
+        # New display resolution will be available only after event call ended, so we execute script in background via "screen"
+        screen -S "display_autoresize_script" -dm sh -c "\"$0\" \"resize_wayland_sway\" \"${sway_socket}\" \"${output}\" \"${output_number}\"" || continue
+
+        ((output_number++)) || true
+      done
     done
   fi
   # ========================================
