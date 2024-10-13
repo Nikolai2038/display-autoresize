@@ -83,14 +83,24 @@ function display_autoresize() {
       fi
       echo "- Display: ${display}" >&2
 
-      output="$(DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr | awk '/ connected/{print $1}')" || continue
-      if [ -z "${output}" ]; then
-        echo "Output is empty!" >&2
+      outputs_as_string="$(DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr | awk '/ connected/{print $1}')" || continue
+      if [ -z "${outputs_as_string}" ]; then
+        echo "Outputs is empty!" >&2
         continue
       fi
-      echo "- Output: ${output}" >&2
 
-      resize_x11 "${xauthority_file}" "${display}" "${output}" || continue
+      # Convert to array
+      mapfile -t outputs <<< "${outputs_as_string}" || return "$?"
+
+      for output in "${outputs[@]}"; do
+        if [ -z "${output}" ]; then
+          echo "Output is empty!" >&2
+          continue
+        fi
+        echo "- Output: ${output}" >&2
+
+        resize_x11 "${xauthority_file}" "${display}" "${output}" || continue
+      done
     done
   fi
   # ========================================
