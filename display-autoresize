@@ -13,18 +13,9 @@ fi
 
 # Resizes X11 display
 function resize_x11() {
-  local user="${1}" && { shift || true; } || return "$?"
   local xauthority_file="${1}" && { shift || true; } || return "$?"
   local display="${1}" && { shift || true; } || return "$?"
   local output="${1}" && { shift || true; } || return "$?"
-
-  # Log some info
-  # shellcheck disable=SC2320
-  echo "X11 resize event: $(date +'%Y-%m-%d_%H-%M-%S'):
-- User: ${user}
-- Xauthority file: ${xauthority_file}
-- Display: ${display}
-- Output: ${output}" >&2 || return "$?"
 
   # Change display resolution
   DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr --output "${output}" --auto || return "$?"
@@ -34,17 +25,12 @@ function resize_x11() {
 
 # Resizes Wayland display for Sway
 function resize_wayland_sway() {
-  local user="${1}" && { shift || true; } || return "$?"
   local sway_socket="${1}" && { shift || true; } || return "$?"
   local output="${1}" && { shift || true; } || return "$?"
 
   local target_resolution
-  target_resolution="$(drm_info | grep preferred | sed -En 's/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p' | head -n 1)Hz"
-  echo "Wayland Sway resize event: $(date +'"'%Y-%m-%d_%H-%M-%S'"'):
-  - User: ${user}
-  - Sway socket: ${sway_socket}
-  - Output: ${output}
-  - Target resolution: ${target_resolution}" | tee --append "${log_file_path}" || return "$?"
+  target_resolution="$(drm_info | grep preferred | sed -En 's/^[^0-9]+([0-9]+)[^0-9]+([0-9]+@[^ ]+).+$/\1x\2/p' | head -n 1)Hz" || return "$?"
+  echo "- Target resolution: ${target_resolution}" >&2
 
   # Change display resolution
   swaymsg --socket "${sway_socket}" "output ${output} mode --custom ${target_resolution}" || return "$?"
@@ -57,26 +43,37 @@ function display_autoresize() {
   declare -a x11_xauthority_infos sway_socket_infos
   local user xauthority_file display output x11_xauthority_info x11_xauthority_infos_as_string sway_socket_infos_as_string sway_socket_info sway_socket
 
+  echo "========================================" >&2
   # shellcheck disable=SC2320
-  echo "Script called: $(date +'%Y-%m-%d_%H-%M-%S'):" >&2 || return "$?"
+  echo "Script called: $(date +'%Y-%m-%d_%H-%M-%S')." >&2 || return "$?"
 
   # ========================================
   # X11
   # ========================================
   # Get all users who use Xauthority right now
-  x11_xauthority_infos_as_string="$(find /tmp -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
+  x11_xauthority_infos_as_string="$(find /run/user/* -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || return "$?"
   if [ -n "${x11_xauthority_infos_as_string}" ]; then
     # Convert to array
     mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
 
     # For each of them
     for x11_xauthority_info in "${x11_xauthority_infos[@]}"; do
-      user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || return "$?"
-      xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || return "$?"
-      display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || return "$?"
-      output="$(su - "${user}" -c "PATH=/usr/bin DISPLAY=\"${display}\" XAUTHORITY=\"${xauthority_file}\" xrandr | awk '/ connected/{print \$1}'")" || continue
+      # shellcheck disable=SC2320
+      echo "X11 resize event: $(date +'%Y-%m-%d_%H-%M-%S')." >&2 || continue
 
-      resize_x11 "${user}" "${xauthority_file}" "${display}" "${output}" || return "$?"
+      user="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 1)" || continue
+      echo "- User: ${user}" >&2
+
+      xauthority_file="$(echo "${x11_xauthority_info}" | cut -d ' ' -f 2)" || continue
+      echo "- Xauthority file: ${xauthority_file}" >&2
+
+      display="$(xauth -f "${xauthority_file}" list | sed -En 's#^[^:]+(:[0-9]+) .+$#\1#p' | head -n 1)" || continue
+      echo "- Display: ${display}" >&2
+
+      output="$(DISPLAY="${display}" XAUTHORITY="${xauthority_file}" xrandr | awk '/ connected/{print $1}')" || continue
+      echo "- Output: ${output}" >&2
+
+      resize_x11 "${xauthority_file}" "${display}" "${output}" || continue
     done
   fi
   # ========================================
@@ -92,12 +89,20 @@ function display_autoresize() {
 
     # For each of them
     for sway_socket_info in "${sway_socket_infos[@]}"; do
-      user="$(echo "${sway_socket_info}" | cut -d ' ' -f 1)" || return "$?"
-      sway_socket="$(echo "${sway_socket_info}" | cut -d ' ' -f 2)" || return "$?"
-      output="$(swaymsg --socket "${sway_socket}" --type 'get_outputs' --raw | jq -r '.[0].name')" || return "$?"
+      # shellcheck disable=SC2320
+      echo "Wayland Sway resize event: $(date +'%Y-%m-%d_%H-%M-%S')." >&2 || continue
+
+      user="$(echo "${sway_socket_info}" | cut -d ' ' -f 1)" || continue
+      echo "- User: ${user}" >&2
+
+      sway_socket="$(echo "${sway_socket_info}" | cut -d ' ' -f 2)" || continue
+      echo "- Sway socket: ${sway_socket}" >&2
+
+      output="$(swaymsg --socket "${sway_socket}" --type 'get_outputs' --raw | jq -r '.[0].name')" || continue
+      echo "- Output: ${output}" >&2
 
       # New display resolution will be available only after event call ended, so we execute script in background via "screen"
-      screen -S "display_autoresize_script" -dm sh -c "\"$0\" \"resize_wayland_sway\" \"${user}\" \"${sway_socket}\" \"${output}\"" || return "$?"
+      screen -S "display_autoresize_script" -dm sh -c "\"$0\" \"resize_wayland_sway\" \"${sway_socket}\" \"${output}\"" || continue
     done
   fi
   # ========================================
