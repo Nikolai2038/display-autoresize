@@ -51,8 +51,11 @@ function display_autoresize() {
   # ========================================
   # X11
   # ========================================
-  # Get all users who use Xauthority right now
-  x11_xauthority_infos_as_string="$(find /run/user/* -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || true
+  # Get all users who use Xauthority right now.
+  # If Login Manager (SDDM, for example) is running:
+  # - as root: "xauth" files will be stored in "/tmp";
+  # - as unprivileged user: "xauth" files will be stored in "/run/user/<UID>".
+  x11_xauthority_infos_as_string="$(find /run/user/* /tmp/* -maxdepth 1 -type f -name 'xauth_*' -perm 600 -exec ls -l {} \; | awk '{print $3 " " $9}')" || true
   if [ -n "${x11_xauthority_infos_as_string}" ]; then
     # Convert to array
     mapfile -t x11_xauthority_infos <<< "${x11_xauthority_infos_as_string}" || return "$?"
