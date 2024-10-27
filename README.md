@@ -55,6 +55,28 @@ Preview:
 
 5. Make sure `spice-vdagentd` is loaded and running fine.
 
+#### 2.1.1. Login Manager (SDDM)
+
+Additionally, if you want this script to work for Login Manager you are using (SDDM for example) - make sure to start it from unprivileged user.
+As I tested with SDDM, if it is running from root, `udev` events does not occur so script to autoresize is not called.
+To start SDDM as unprivileged user:
+
+```bash
+sudo mkdir --parents /etc/sddm.conf.d && \
+echo '[General]
+DisplayServer=x11-user' | sudo tee /etc/sddm.conf.d/set_compositor.conf && \
+echo 'allowed_users = anybody
+needs_root_rights = no' | sudo tee --append /etc/X11/Xwrapper.config && \
+sudo systemctl restart sddm.service
+```
+
+For more info, check:
+
+```bash
+man sddm.conf
+man Xorg.wrap
+```
+
 ### 2.2. Host
 
 Just make sure that auto-resize is enabled when you are connecting via `virt-viewer`/`spicy`.
@@ -65,7 +87,7 @@ Just make sure that auto-resize is enabled when you are connecting via `virt-vie
 - Watch `dmesg -w` (may not be super useful);
 - Watch logs with `tail -f /var/log/display-autoresize.log`.
 
-## 4. Credits:
+## 4. Credits
 
 - "Forked" from [gist](https://gist.github.com/IngoMeyer441/84cf1e40fa756a9c3e6c8d9e38ee9b6f) but with `XAUTHORITY` and Sway (Wayland) support;
 - Credit for [finding sessions as root](https://unix.stackexchange.com/questions/117083/how-to-get-the-list-of-all-active-x-sessions-and-owners-of-them);
