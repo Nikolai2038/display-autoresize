@@ -162,6 +162,10 @@ function display_autoresize() {
   fi
   # ========================================
 
+  if [ -z "${x11_xauthority_infos_as_string}" ] && [ -z "${sway_socket_infos_as_string}" ]; then
+    echo "No sessions found!" >&2
+  fi
+
   return 0
 }
 
