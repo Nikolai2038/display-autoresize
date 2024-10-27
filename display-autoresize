@@ -34,7 +34,7 @@ function resize_wayland_sway() {
   echo "- Target resolution: ${target_resolution}" >&2
 
   # Change display resolution
-  swaymsg --socket "${sway_socket}" "output ${output} mode --custom ${target_resolution}" || return "$?"
+  swaymsg --quiet --socket "${sway_socket}" "output ${output} mode --custom ${target_resolution}" || return "$?"
 
   return 0
 }
