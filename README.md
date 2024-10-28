@@ -1,5 +1,7 @@
 # display-autoresize
 
+**EN** | [RU](README_RU.md)
+
 ## 1. Description
 
 Script to autoresize display in SPICE session. Tested on Arch Linux with:
@@ -57,7 +59,7 @@ Preview:
 
 #### 2.1.1. Login Manager (SDDM)
 
-Additionally, if you want this script to work for Login Manager you are using (SDDM for example) - make sure to start it from unprivileged user.
+Additionally, if you want this script to work for login manager you are using (SDDM for example) - make sure to start login manager from unprivileged user.
 As I tested with SDDM, if it is running from root, `udev` events does not occur so script to autoresize is not called.
 To start SDDM as unprivileged user:
 
