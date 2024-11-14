@@ -175,7 +175,7 @@ if [ "${function_name_to_call}" = "resize_wayland_sway" ]; then
   resize_wayland_sway "$@" 2>&1 | tee --append "${log_file_path}" || exit "$?"
 else
   # Allow only one instance at the time
-  if pgrep -qf '/usr/bin/display-autoresize'; then
+  if pgrep -f '/usr/bin/display-autoresize' > /dev/null; then
     echo "Already running!" >&2
     exit 0
   fi
