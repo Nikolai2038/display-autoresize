@@ -42,16 +42,16 @@
 3. Скачайте скрипт `display-autoresize` из этого репозитория и сделайте его исполняемым:
 
     ```bash
-    sudo wget -O /usr/bin/display-autoresize https://raw.githubusercontent.com/Nikolai2038/display-autoresize/refs/heads/main/display-autoresize && \
-    sudo chmod +x /usr/bin/display-autoresize
+    sudo wget -O /usr/local/bin/display-autoresize https://raw.githubusercontent.com/Nikolai2038/display-autoresize/refs/heads/main/display-autoresize && \
+    sudo chmod +x /usr/local/bin/display-autoresize
     ```
 
-   - Вы можете разместить скрипт не в `/usr/bin/display-autoresize`, но не забудьте также поменять путь к нему в правиле udev (смотреть ниже).
+   - Вы можете разместить скрипт не в `/usr/local/bin/display-autoresize`, но не забудьте также поменять путь к нему в правиле udev (смотреть ниже).
 
 4. Создайте правило udev:
 
     ```bash
-    echo 'ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/bin/display-autoresize"' | sudo tee /etc/udev/rules.d/50-display-autoresize.rules && \
+    echo 'ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/local/bin/display-autoresize"' | sudo tee /etc/udev/rules.d/50-display-autoresize.rules && \
     sudo udevadm control --reload-rules
     ```
 
