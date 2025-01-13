@@ -57,7 +57,7 @@ Preview:
 
 5. Make sure `spice-vdagentd` is loaded and running fine.
 
-#### 2.1.1. Login Manager (SDDM)
+#### 2.1.1. [UNSTABLE] Login Manager (SDDM)
 
 Additionally, if you want this script to work for login manager you are using (SDDM for example) - make sure to start login manager from unprivileged user.
 As I tested with SDDM, if it is running from root, `udev` events does not occur so script to autoresize is not called.
@@ -78,6 +78,10 @@ For more info, check:
 man sddm.conf
 man Xorg.wrap
 ```
+
+Update 2025-01-13:
+
+- I tried `x11-user` and `wayland` for `DisplayServer` setting for some time, and found out, that they are a lot more unstable, than the default `x11` setting. Specifically, `x11-user` will cause user session (after you logged in) to crash after some time. As for `wayland` - it has freeze problems when connected via `aSPICE` Android app. I don't test all this properly, but will stick to default `x11` for now.
 
 ### 2.2. Host
 
